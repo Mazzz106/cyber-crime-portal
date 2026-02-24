@@ -1,0 +1,192 @@
+{
+  "name": "Send OTP Verification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-otp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-2",
+      "name": "Webhook - Send OTP",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate 6-digit OTP\nconst otp = Math.floor(100000 + Math.random() * 900000).toString();\nconst contact = $json.contact;\nconst method = $json.method; // 'email' or 'phone'\nconst tokenNumber = $json.tokenNumber;\n\n// Store OTP in temp storage with expiry (5 minutes)\nconst expiryTime = Date.now() + (5 * 60 * 1000);\n\nreturn {\n  otp: otp,\n  contact: contact,\n  method: method,\n  tokenNumber: tokenNumber,\n  expiryTime: expiryTime\n};"
+      },
+      "id": "code-4",
+      "name": "Generate OTP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO otp_verification (token_number, contact, method, otp_code, expiry_time, created_at) VALUES ('{{ $json.tokenNumber }}', '{{ $json.contact }}', '{{ $json.method }}', '{{ $json.otp }}', to_timestamp({{ $json.expiryTime }}/1000), NOW()) ON CONFLICT (token_number, contact) DO UPDATE SET otp_code = EXCLUDED.otp_code, expiry_time = EXCLUDED.expiry_time, created_at = NOW()"
+      },
+      "id": "postgres-2",
+      "name": "Store OTP",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.method }}",
+              "value2": "email"
+            }
+          ]
+        }
+      },
+      "id": "if-1",
+      "name": "Check Method",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@cybercrime.gov.in",
+        "toEmail": "={{ $json.contact }}",
+        "subject": "OTP Verification - Cyber Crime Portal",
+        "text": "Your OTP for complaint verification is: {{ $json.otp }}\n\nThis OTP is valid for 5 minutes.\n\nIf you did not request this, please ignore this email."
+      },
+      "id": "email-3",
+      "name": "Send OTP via Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1050, 200],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.msg91.com/api/v5/flow/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "mobile",
+              "value": "={{ $json.contact }}"
+            },
+            {
+              "name": "otp",
+              "value": "={{ $json.otp }}"
+            }
+          ]
+        }
+      },
+      "id": "http-1",
+      "name": "Send OTP via SMS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"OTP sent successfully\" } }}"
+      },
+      "id": "response-2",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Send OTP": {
+      "main": [
+        [
+          {
+            "node": "Generate OTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate OTP": {
+      "main": [
+        [
+          {
+            "node": "Store OTP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store OTP": {
+      "main": [
+        [
+          {
+            "node": "Check Method",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Method": {
+      "main": [
+        [
+          {
+            "node": "Send OTP via Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send OTP via SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send OTP via Email": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send OTP via SMS": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

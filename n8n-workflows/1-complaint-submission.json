@@ -1,0 +1,194 @@
+{
+  "name": "Cyber Crime Complaint Submission",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "submit-complaint",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook - Receive Complaint",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "complaint-submit"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO complaints (complaint_token, reporter_name, reporter_email, reporter_phone, aadhaar_number, pan_number, address_line1, address_line2, city, state, pincode, nearest_police_station, incident_date, incident_type, incident_description, suspect_information, evidence_details, financial_loss, submission_date, status, pdf_url) VALUES ('{{ $json.complaint_token }}', '{{ $json.reporter_name }}', '{{ $json.reporter_email }}', '{{ $json.reporter_phone }}', '{{ $json.aadhaar_number }}', '{{ $json.pan_number }}', '{{ $json.address_line1 }}', '{{ $json.address_line2 }}', '{{ $json.city }}', '{{ $json.state }}', '{{ $json.pincode }}', '{{ $json.nearest_police_station }}', '{{ $json.incident_date }}', '{{ $json.incident_type }}', '{{ $json.incident_description }}', '{{ $json.suspect_information }}', '{{ $json.evidence_details }}', '{{ $json.financial_loss }}', '{{ $json.submission_date }}', 'pending', '{{ $json.pdf_url }}') RETURNING *"
+      },
+      "id": "postgres-1",
+      "name": "Save to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate email content\nconst complaint = $input.all()[0].json;\n\nreturn {\n  to: complaint.reporter_email,\n  subject: `Complaint Registered - ${complaint.complaint_token}`,\n  body: `\nDear ${complaint.reporter_name},\n\nYour cyber crime complaint has been successfully registered.\n\nComplaint Token: ${complaint.complaint_token}\nSubmission Date: ${complaint.submission_date}\nIncident Type: ${complaint.incident_type}\nNearest Police Station: ${complaint.nearest_police_station}\n\nPlease keep this token number safe for tracking your complaint.\nYou can track your complaint status at: http://your-portal.com/track\n\nThe concerned authorities have been notified and will contact you if additional information is required.\n\nRegards,\nNational Cyber Crime Reporting Division\nMinistry of Home Affairs\n  `\n};"
+      },
+      "id": "code-1",
+      "name": "Prepare Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@cybercrime.gov.in",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.body }}"
+      },
+      "id": "email-1",
+      "name": "Send Email to Victim",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare SMS for OTP or notification\nconst complaint = $input.all()[0].json;\n\nreturn {\n  to: complaint.reporter_phone,\n  message: `Your complaint ${complaint.complaint_token} has been registered successfully. Visit our portal to track status.`\n};"
+      },
+      "id": "code-2",
+      "name": "Prepare SMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Notify Police Station\nconst complaint = $input.all()[0].json;\n\nreturn {\n  to: 'police@station.gov.in',\n  subject: `New Cyber Crime Complaint - ${complaint.complaint_token}`,\n  body: `\nNew cyber crime complaint registered:\n\nComplaint Token: ${complaint.complaint_token}\nIncident Type: ${complaint.incident_type}\nVictim: ${complaint.reporter_name}\nLocation: ${complaint.city}, ${complaint.state}\nNearest Police Station: ${complaint.nearest_police_station}\nFinancial Loss: ₹${complaint.financial_loss}\nIncident Date: ${complaint.incident_date}\n\nDescription:\n${complaint.incident_description}\n\nPlease login to the portal for full details.\n  `\n};"
+      },
+      "id": "code-3",
+      "name": "Notify Police",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "cybercrime@gov.in",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.body }}"
+      },
+      "id": "email-2",
+      "name": "Send Email to Police",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [850, 300],
+      "credentials": {
+        "smtp": {
+          "id": "1",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"complaintNumber\": $('Save to Database').item.json.complaint_token, \"message\": \"Complaint registered successfully\" } }}"
+      },
+      "id": "response-1",
+      "name": "Respond to Frontend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Complaint": {
+      "main": [
+        [
+          {
+            "node": "Save to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Database": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare SMS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Police",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Send Email to Victim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Police": {
+      "main": [
+        [
+          {
+            "node": "Send Email to Police",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email to Victim": {
+      "main": [
+        [
+          {
+            "node": "Respond to Frontend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email to Police": {
+      "main": [
+        [
+          {
+            "node": "Respond to Frontend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

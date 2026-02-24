@@ -1,0 +1,145 @@
+{
+  "name": "Get Resolved Complaints",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resolved-complaints",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-6",
+      "name": "Webhook - Get Resolved",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM complaints WHERE complaint_token = '{{ $json.tokenNumber }}' AND (reporter_email = '{{ $json.contact }}' OR reporter_phone = '{{ $json.contact }}') AND status = 'resolved'"
+      },
+      "id": "postgres-8",
+      "name": "Verify & Get Complaint",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "if-3",
+      "name": "Complaint Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM resolved_complaints WHERE complaint_token = '{{ $json[0].complaint_token }}'"
+      },
+      "id": "postgres-9",
+      "name": "Get Resolution Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 200],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"complaint\": $('Verify & Get Complaint').item.json, \"resolution\": $json[0] } }}"
+      },
+      "id": "response-7",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"message\": \"Complaint not found or not resolved\" } }}"
+      },
+      "id": "response-8",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "Webhook - Get Resolved": {
+      "main": [
+        [
+          {
+            "node": "Verify & Get Complaint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify & Get Complaint": {
+      "main": [
+        [
+          {
+            "node": "Complaint Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Complaint Found?": {
+      "main": [
+        [
+          {
+            "node": "Get Resolution Details",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Resolution Details": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

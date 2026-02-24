@@ -1,0 +1,98 @@
+{
+  "name": "Track Complaint Status",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "track-complaint/:tokenNumber",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-4",
+      "name": "Webhook - Track",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT complaint_token, reporter_name, incident_type, incident_date, status, submission_date, nearest_police_station, incident_description FROM complaints WHERE complaint_token = '{{ $json.params.tokenNumber }}'"
+      },
+      "id": "postgres-5",
+      "name": "Get Complaint",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM complaint_updates WHERE complaint_token = '{{ $json[0].complaint_token }}' ORDER BY update_date DESC"
+      },
+      "id": "postgres-6",
+      "name": "Get Updates",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "PostgreSQL account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"complaint\": $('Get Complaint').item.json, \"updates\": $('Get Updates').all() } }}"
+      },
+      "id": "response-5",
+      "name": "Return Data",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Track": {
+      "main": [
+        [
+          {
+            "node": "Get Complaint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Complaint": {
+      "main": [
+        [
+          {
+            "node": "Get Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Updates": {
+      "main": [
+        [
+          {
+            "node": "Return Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
