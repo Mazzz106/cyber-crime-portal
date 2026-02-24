@@ -1108,17 +1108,17 @@ export function ComplaintForm() {
               'Submit Complaint'
             )}
           </button>
-          {(!emailVerified || !phoneVerified) && (
+          {!phoneVerified && (
             <p className="text-sm text-orange-600 mt-2 text-center">
-              Please verify both email and phone number before submitting
+              Please verify your phone number before submitting
             </p>
           )}
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <p className="text-sm text-blue-900">
-            <strong>Note:</strong> After submission, you will receive a confirmation email
-            with your complaint number. The nearest police station and Cyber Crime Branch will be notified
+            <strong>Note:</strong> After submission, you will receive your complaint acknowledgement PDF via WhatsApp
+            on your verified phone number. The Cyber Crime Branch will be notified
             and will contact you if additional information is required.
           </p>
         </div>
