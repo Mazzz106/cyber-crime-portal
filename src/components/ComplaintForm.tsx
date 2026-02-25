@@ -770,22 +770,19 @@ export function ComplaintForm() {
             {/* PAN Number */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                PAN Number *
+                PAN Number (Optional)
               </label>
               <input
                 type="text"
                 name="pan_number"
                 value={formData.pan_number}
                 onChange={handleChange}
-                required
-                pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}"
                 maxLength={10}
                 placeholder="e.g., ABCDE1234F"
-                title="Please enter a valid PAN number (e.g., ABCDE1234F)"
                 style={{ textTransform: 'uppercase' }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <p className="text-xs text-gray-500 mt-1">Format: 5 letters, 4 digits, 1 letter</p>
+              <p className="text-xs text-gray-500 mt-1">Optional. If provided, use format: 5 letters, 4 digits, 1 letter</p>
             </div>
           </div>
         </div>
