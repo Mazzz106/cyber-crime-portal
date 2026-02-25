@@ -79,6 +79,7 @@ export function ComplaintForm() {
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const [otpSessionToken] = useState(`SESSION-${Date.now()}`);
+  const isEmailVerificationEnabled = false;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{
@@ -406,12 +407,11 @@ export function ComplaintForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Email verification is optional (while domain is being verified on Resend)
-    // if (!emailVerified) {
-    //   alert('Please verify your email address before submitting');
-    //   return;
-    // }
+
+    if (isEmailVerificationEnabled && !emailVerified) {
+      alert('Please verify your email address before submitting');
+      return;
+    }
     
     if (!phoneVerified) {
       alert('Please verify your phone number before submitting');
@@ -629,22 +629,25 @@ export function ComplaintForm() {
               />
             </div>
             
-            {/* Email with OTP Verification */}
+            {/* Email Verification (feature-flagged) */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address (Optional) {emailVerified && <CheckCircle2 className="inline w-5 h-5 text-green-600 ml-2" />}
+                Email Address {isEmailVerificationEnabled ? '*' : '(Optional)'} {emailVerified && <CheckCircle2 className="inline w-5 h-5 text-green-600 ml-2" />}
               </label>
-              <p className="text-xs text-gray-500 mb-2">Email verification temporarily disabled while domain is being verified</p>
+              {!isEmailVerificationEnabled && (
+                <p className="text-xs text-gray-500 mb-2">You can submit using phone verification only.</p>
+              )}
               <div className="flex gap-2">
                 <input
                   type="email"
                   name="reporter_email"
                   value={formData.reporter_email}
                   onChange={handleChange}
-                  disabled={emailVerified}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  required={isEmailVerificationEnabled}
+                  disabled={isEmailVerificationEnabled && emailVerified}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                {!emailVerified && (
+                {isEmailVerificationEnabled && !emailVerified && (
                   <button
                     type="button"
                     onClick={sendEmailOtp}
@@ -656,7 +659,7 @@ export function ComplaintForm() {
                   </button>
                 )}
               </div>
-              {emailOtpSent && !emailVerified && (
+              {isEmailVerificationEnabled && emailOtpSent && !emailVerified && (
                 <div className="mt-2 flex gap-2">
                   <input
                     type="text"
@@ -1096,7 +1099,7 @@ export function ComplaintForm() {
         <div className="pt-4">
           <button
             type="submit"
-            disabled={isSubmitting || !emailVerified || !phoneVerified}
+            disabled={isSubmitting || (isEmailVerificationEnabled && !emailVerified) || !phoneVerified}
             className="w-full bg-blue-700 hover:bg-blue-800 text-white font-semibold py-3 px-6 rounded-md transition duration-200 flex items-center justify-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isSubmitting ? (
